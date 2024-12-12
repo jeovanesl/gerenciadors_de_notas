@@ -1,63 +1,77 @@
-// importação de dependências
-import http from 'http'
-import {v4} from 'uuid'
+import express from 'express';
+import { v4 as uuidv4 } from 'uuid';
 
-// setup do servidor
-const porta = 3000
+const app = express();
+const porta = 3000;
 
-// criando array
-const grades = [ ]
+app.use(express.json()); // Middleware para interpretar JSON no corpo das requisições
 
-// criando servidor
-const servidor = http.createServer((req, res) =>{
+const grades = [];
 
-    // funções do back-end
-    const {method, url} = req
-    let body = ' '
-
-    req.on('data', chunk => {
-        body += chunk.toString()
-    })
-
-    req.on('end', ( )=>{
-        const id = url.split(' / ') [2]
-    // get
-    if (method === 'GET' && url === '/grades'){
-        res.writeHead(200, {'Content-Type': 'application/json'})
-        res.end(JSON.stringify(grades))
-        
-    }
-
-    //post
-    else if (method === 'POST' && url === '/grades'){
-        const{studantName, course, grades} = JSON.parse(body)
-        const newGrade = {id: v4(), studantName, course, grade}
-        grades.push(newGrade)
-        res.writeHead(201, {'Content-Type': 'application/json'})
-        res.end(JSON.stringify(newGrade))
-
-    }
-
-    //put
-    else if(url.startsWith ('/grades') && method === 'PUT') {
-
-    }
-
-    // delete
-    else if(url.startsWith ('/grades') && method === 'DELETE') {
-
-    }
-
-    //erro
-    else {
-        res.writeHead(404, {'Content-Type': 'application/json'})
-        res.end(JSON.stringify({error: 'Rota não encontrada'}))
-    }
-    
-    })
+// GET - buscar as informações
+app.get('/grades', (req, res) => {
+  res.status(200).json(grades)
 })
 
-// inicia o servidor
-servidor.listen(porta, ( )=>{
-    console.log(`Servidor rodando na porta ${porta}`)
+// POST - inserir as informações
+
+app.post('/grades', (req, res) => {
+  const { studantName, subject, grade } = req.body;
+
+  if (!studantName || !subject || grade === undefined) {
+    return res.status(400).json({ message: 'All fields are required' });
+  }
+
+  const newGrade = { id: uuidv4(), studantName, subject, grade };
+  grades.push(newGrade);
+
+  res.status(201).json(newGrade);
+});
+
+// PUT - atualizar informações
+
+app.put('/grades/:id', (req, res ) =>{
+
+  const id = req.params.id
+  const {studanteName, subject, grade} = req.body
+
+  const gradeToUpdate = grades.find((g) => g.id === id)
+
+  if(!gradeToUpdate){
+    return res.status(404).json({message: 'Grade not found'})
+  }
+
+  gradeToUpdate.studanteName = studanteName || gradeToUpdate.studanteName
+  gradeToUpdate.subject = subject || gradeToUpdate.subject
+  gradeToUpdate.grade = grade !== undefined ? grade : gradeToUpdate
+
+  res.status(200).json(gradeToUpdate)
+
 })
+
+// DELETE - exlcuir informações
+app.delete('/grades/:id', (req, res) => {
+
+  const {id} = req.params
+
+  const index = grades.findIndex((g) => g.id === id)
+
+  if(index === -1) {
+    return res.status(404).json({message: 'Grade not found'})
+  }
+   
+ grades.splice(index, 1)
+
+ res.status(204).send()
+
+})
+
+// Middleware para rotas não encontradas
+app.use((req, res) => {
+  res.status(404).json({ message: 'Route not found' });
+});
+
+// Iniciando o servidor
+app.listen(porta, () => {
+  console.log(`Servidor rodando na porta ${porta}`);
+});
